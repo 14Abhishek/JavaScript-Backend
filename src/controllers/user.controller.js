@@ -17,21 +17,21 @@ const registerUser = asyncHandler(async (req, res)=>{
      // return response
 
 
-    const {fullNmame, email, username, password} = req.body;
-    console.log("email: ", email) 
-
-    if([fullNmame, email, username, password].some(field=>field?.trim() === "")){
+     
+     const {fullName, email, username, password} = req.body;
+  
+    if([fullName, email, username, password].some(field=>field?.trim() === "")){
         throw new ApiError(400, `The ${field} is required field`)
     } // we can check other validation as well like ..@ is present in email field 
 
-    const existedUser = User.findOne({
+    const existedUser = await User.findOne({
         $or: [{email},{username}]
     })
     if(existedUser){
         throw new ApiError(409, "The User already Exists")
     }
 
-    // console.log(req.files)
+    
     const avatarLocalPath = req.files?.avatar[0]?.path
     const coverImageLocalPath = req.files?.coverImage[0]?.path
     if(!avatarLocalPath){
@@ -45,7 +45,7 @@ const registerUser = asyncHandler(async (req, res)=>{
     }
 
     const user = await User.create({
-        fullNmame,
+        fullName,
         avatar: avatarUpload.url,
         coverImage: coverImageUpload?.url || "",
         email,
