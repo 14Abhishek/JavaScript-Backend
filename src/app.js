@@ -26,7 +26,8 @@ import userRouter from './routes/user.routes.js'
 
 
 // routes decleration
-app.use("/api/v1/users", userRouter)  
+app.use("/api/v1/users", userRouter)
+// any requests to paths starting with /api/v1/users should be handled using the userRouter middleware
 
 
 export { app }
