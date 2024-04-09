@@ -4,11 +4,12 @@ import { User } from "../models/user.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { signedCookie } from "cookie-parser";
+import { jwt } from "jsonwebtoken";
 
 
 const generateAccessAndRefreshToken = async (uid)=>{
     try {
-        const user = await User.findOne({uid})
+        const user = await User.findById(uid)
         const refreshToken = user.generateRefreshToken();
         const accessToken = user.generateAccessToken(); 
 
@@ -21,7 +22,6 @@ const generateAccessAndRefreshToken = async (uid)=>{
         throw new ApiError(500, "Something went wrong in generating access nd  refresh token")
     }
 }
-
 
 const registerUser = asyncHandler(async (req, res)=>{
      // get imp details from user
@@ -149,8 +149,8 @@ const logoutUser = asyncHandler(async(req, res)=>{
 
     return res
     .status(200)
-    .clearCookie(refreshToken, options)
-    .clearCookie(accessToken, options)
+    .clearCookie("refreshToken", options)
+    .clearCookie("accessToken", options)
     .json(
         new ApiResponse(200, {}, "User logged Out")
     )
@@ -158,8 +158,54 @@ const logoutUser = asyncHandler(async(req, res)=>{
 
 })
 
+
+const renewAccessAndRefreshToken = asyncHandler(async(req,res)=>{
+
+    // getting id from incoming cookies
+    //decoding the token
+    // Is the refresh token expired? -> getting refreshtoken from db, then comparing it with incoming token
+    // generating tokens from external method
+
+
+    const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken
+    if(!incomingRefreshToken){
+        throw new ApiError(401, "Token not found in cookies")
+    }
+    const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+    if(!decodedToken){
+        throw new ApiError(401, "Invalid Token(not able to decode/verify token)")
+    }
+
+    const user = User.findById(decodedToken._id)
+    if(user.refreshToken !== incomingRefreshToken){
+        throw new ApiError(401, "Refresh Token is expired coz, token from db is diff")
+    }
+
+    const {refreshToken, accessToken} = await generateAccessAndRefreshToken(decodedToken._id)
+
+    const options = {
+        httpOnly: true,
+        secure: true
+    }
+
+    return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+        new ApiResponse(200,{accessToken, refreshToken}, "Tokens renewed successfully" )
+    )
+
+
+})
+
+
+
+
+
 export {
     registerUser, 
     loginUser, 
-    logoutUser
+    logoutUser,
+    renewAccessAndRefreshToken
 }
