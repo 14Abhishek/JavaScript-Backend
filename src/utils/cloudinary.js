@@ -20,6 +20,7 @@ const uploadOnCloudinary = async (localFilePath)=>{
         const response = await cloudinary.uploader.upload(localFilePath,{
             resource_type: "auto"
         })
+        
 
  
         //file has been uploaded at this point
@@ -30,6 +31,16 @@ const uploadOnCloudinary = async (localFilePath)=>{
         fs.unlinkSync(localFilePath) // remove the locally saved temprary 
         //  file as the upload operation got failed
         return null;
+    }
+}
+
+
+// delte from cloudinary 
+const deleteOnCloudinary = async ()=>{
+    try {
+        const response = await cloudinary.uploader.destroy()
+    } catch (err) {
+        console.error(err.message)
     }
 }
 

@@ -5,11 +5,21 @@ import cookieParser from "cookie-parser";  // server can access and use cookies 
 const app = express();
 
 
+
 // read&learn bout cors plz
 app.use(cors({
     origin : process.env.CORS_ORIGIN,
     credentials: true
 }))
+// The credentials option indicates whether or not the response to the request can 
+// be exposed when the credentials flag is true. When credentials is set to true, it 
+// allows the server to include credentials (such as cookies, authorization headers, 
+// or TLS client certificates) in the requests. This is often necessary for sessions, 
+// authentication, and other sensitive operations that require stateful interactions
+
+
+
+
 
 
 

@@ -19,3 +19,4 @@ const susbcriptionSchema = new Schema({
 
 
 export const Subscription = mongoose.model("subscription", susbcriptionSchema);
+ 

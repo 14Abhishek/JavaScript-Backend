@@ -5,6 +5,7 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { signedCookie } from "cookie-parser";
 import { jwt } from "jsonwebtoken";
+import { response } from "express";
 
 
 const generateAccessAndRefreshToken = async (uid)=>{
@@ -49,7 +50,7 @@ const registerUser = asyncHandler(async (req, res)=>{
         throw new ApiError(409, "The User already Exists")
     }
 
-    
+
     const avatarLocalPath = req.files?.avatar[0]?.path
     const coverImageLocalPath = req.files?.coverImage[0]?.path
     if(!avatarLocalPath){
@@ -66,7 +67,7 @@ const registerUser = asyncHandler(async (req, res)=>{
         fullName,
         avatar: avatarUpload.url,
         coverImage: coverImageUpload?.url || "",
-        email,
+        email,0
         password,
         username: username.toLowerCase()
     })
@@ -105,7 +106,7 @@ const loginUser = asyncHandler(async (req, res)=>{
         throw new ApiError(404, "user does not exist");
     }
 
-    const isCorrectValid = await user.isPasswordCorrect(password);
+    const isCorrectValid = await User.isPasswordCorrect(password);
     if(!isCorrectValid){
         throw new ApiError(401, "Invalid password")
     }
@@ -162,7 +163,7 @@ const logoutUser = asyncHandler(async(req, res)=>{
 const renewAccessAndRefreshToken = asyncHandler(async(req,res)=>{
 
     // getting id from incoming cookies
-    //decoding the token
+    // decoding the token
     // Is the refresh token expired? -> getting refreshtoken from db, then comparing it with incoming token
     // generating tokens from external method
 
@@ -200,12 +201,136 @@ const renewAccessAndRefreshToken = asyncHandler(async(req,res)=>{
 })
 
 
+const changeCurrentPassword = asyncHandler(async(req, res)=>{
+    // get pswrd from req, and fetch user from db
+    // check if old password correct
+    // save new password in db (it automatically bcrypts)
+    // return response
 
+    const {password, newPassword} = req.body;
+
+    const user = await User.findById(req.user?._id);
+
+
+    const isPassCorrect = await user.isPasswordCorrect(password)
+    if(!isPassCorrect){
+        throw new ApiError(400, "password is incorrect")
+    } 
+
+    user.password = newPassword;
+    await user.save({validateBeforeSave: false}); 
+
+    // what if i want to hit an endpoint here? ... example-> logout
+    // eg. logout user after he resets password
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, _, "The password is reset successfully")
+    )
+    
+})
+
+
+const getCurrentUser = asyncHandler(async(req, res)=>{  
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, req?.user, "The current User Fetched") 
+    )
+})
+
+
+// we don't update files in this controller... for that we set a seperate endpoint
+const updateAccountDetails = asyncHandler(async(req, res)=>{
+    // take data
+    // validatoin of fields
+    // find user
+    
+    const {username, fullName, email} = req.body
+    
+    if(!username || !fullName || !email){
+        throw new ApiError(400,"Entered value is invalid or empty")
+    }
+
+    const user  = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                fullName: fullName,
+                email: email,
+                username: username
+            }
+        },
+        {new: true}     // after updating the info returns object
+        ).select("-password");   // returned object must not contain this field
+
+    return res
+    .status(200, user, "User details updated successfully")
+
+})
+
+const updateUserAvatar = asyncHandler(async(req, res)=>{
+    // here we will have access to req.file as we will be using the multer middleware
+    // we had req.files coz we had 2 imgfiles 
+
+    // here multer uploaded file locally
+    const avatarLocalPath = req.file?.path;
+    if(!avatarLocalPath){
+        throw new ApiError(400, "Avatar file is missing");
+    }
+    
+    // TODO: delete old image
+
+    // delet    e image from cloudinary
+    const avatar = uploadOnCloudinary(avatarLocalPath)
+    if(!avatar.url){
+        throw new ApiError(500, "Error while uplaoding on avatar")
+    }   
+
+    const user = User.findByIdAndDelete(
+        req.user?._id,
+        {$set: {avatar: avatar.url}},
+        {new: true} //infor recived after update
+    ).select("-password")   
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, user, "The avatar was updated successfully")
+    )
+})
+
+const getUserChannelProfile = asyncHandler(async(req, res)=>{
+    //when we need a channel profile we visit its url
+    const {username} = req.params;
+    if(!username?.trim()){
+        throw new ApiError(400, "The username entered is invalid")
+    }
+
+    const channel = await User.aggregate([
+        {
+            $match:{
+                username: username?.toLowerCase()
+            }
+        },
+        {
+            $lookup:{
+                from: 
+            }
+        }
+    ])
+})
 
 
 export {
     registerUser, 
     loginUser, 
     logoutUser,
-    renewAccessAndRefreshToken
+    renewAccessAndRefreshToken,
+    changeCurrentPassword,
+    getCurrentUser,
+    updateAccountDetails,
+    updateUserAvatar,
+    getUserChannelProfile
 }
