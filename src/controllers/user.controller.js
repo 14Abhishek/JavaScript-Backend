@@ -1,11 +1,13 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
-import { User } from "../models/user.models.js";
+import  {User}  from "../models/user.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { signedCookie } from "cookie-parser";
-import { jwt } from "jsonwebtoken";
+import  jwt  from "jsonwebtoken";
 import { response } from "express";
+import mongoose from "mongoose"
+
 
 
 const generateAccessAndRefreshToken = async (uid)=>{
@@ -67,7 +69,7 @@ const registerUser = asyncHandler(async (req, res)=>{
         fullName,
         avatar: avatarUpload.url,
         coverImage: coverImageUpload?.url || "",
-        email,0
+        email,
         password,
         username: username.toLowerCase()
     })
@@ -316,12 +318,117 @@ const getUserChannelProfile = asyncHandler(async(req, res)=>{
         },
         {
             $lookup:{
-                from: 
+                from: "subscriptions",
+                localField: "_id",
+                foreignField:"channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup:{
+                from: "subscription",
+                localField: "_id",
+                foreignField: "subscribers",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $addFields:{
+                subscriberCount:{
+                    $size: "$subscribers"
+                },
+                subscribedToCount:{
+                    $size: "$subscribedTo"
+                },
+                isSubscribed:{
+                    $cond:{
+                        if: {$in: [req.user?._id, "$subscribers.subscriber"]},
+                        then: true,
+                        else: false
+                    }  
+                    
+                }     
+            }
+        },
+        {
+            $project:{
+                fullName: 1,
+                subscriberCount: 1,
+                subscriberCount:1,
+                isSubscribed: 1,
+                username: 1,
+                avatar: 1,
+                coverImage:1,
+                email: 1
             }
         }
     ])
+
+    // this channel thing which is implementing 'aggregate' 
+    // returns array of objects .. those objects are the ones that
+    // match our specifications mentioned ... here in our controller
+    // we just specified that return the document which has the mentioned 
+    // username.... so that will be just one document
+    if(!channel.length){
+        throw new ApiError(404, "channel does not exists")
+    }
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, channel[0], "User Channel Fetched"))
 })
 
+
+const getWatchHistory = asyncHandler(async(req, res)=>{
+    // note that req.user._id returns a String .. and that string is resolved by 
+    // mongoose so that it can be converted into appropriate id.... but when we use
+    // aggregate method the whole code goes to mongodb so we have to manually resolve 
+    // it and then send id to mongodb... 
+
+
+    // another imp thing ... when we left join the video schema to the 
+    // user watchHistory .. there is another field in video schema which
+    // will be empty and that is 'owner'... so if we need the owner we need
+    // to make another aggregation ... so basically aggregation within aggregation 
+    
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id:  new mongoose.Types.ObjectId(req.user._id) 
+            }
+        },
+        {
+            $lookup:{
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup:{
+                            from: "users",
+                            localField:"owner",
+                            foreignField: "_id",
+                            as: "owners",
+                            pipeline: [
+                               {
+                                $project:{
+                                    username: 1,
+                                    fullName: 1
+                                }
+                               }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, user[0].watchHistory, "watchHistory fetched"))
+})
 
 export {
     registerUser, 
@@ -332,5 +439,6 @@ export {
     getCurrentUser,
     updateAccountDetails,
     updateUserAvatar,
-    getUserChannelProfile
+    getUserChannelProfile,
+    getWatchHistory
 }

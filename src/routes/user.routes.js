@@ -7,7 +7,9 @@ import {
     changeCurrentPassword, 
     getCurrentUser,
     updateAccountDetails,
-    updateUserAvatar
+    updateUserAvatar,
+    getUserChannelProfile,
+    getWatchHistory
     }
  from "../controllers/user.controller.js";
 import {upload} from "../middlewares/multer.middleware.js"
@@ -43,9 +45,15 @@ router.route("/change-password").post(verifyJWT,changeCurrentPassword)
 
 router.route("/current-user").get(verifyJWT, getCurrentUser)
 
-router.route("/update-account").post(verifyJWT, updateAccountDetails)
+// we used patch instead of post because post-creates resource, patch-updates resource
+router.route("/update-account").patch(verifyJWT, updateAccountDetails)
 
-router.route("/update-avatar").post(verifyJWT, upload.single("avatar"), updateUserAvatar)
+router.route("/update-avatar").patch(verifyJWT, upload.single("avatar"), updateUserAvatar)
+
+// in this route we are taking data from params
+router.route("/c/:username").get(verifyJWT, getUserChannelProfile)
+
+router.route("/history").get(verifyJWT, getWatchHistory)
 
 
 

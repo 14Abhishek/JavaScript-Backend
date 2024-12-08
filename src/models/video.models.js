@@ -1,6 +1,7 @@
 import mongoose, {Schema} from "mongoose";
-import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
-// helps in writing aggregatoin queries
+// import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
+// we cant give user alll the videos when returning we have to provide some 
+// pagination... so more videos can be loaded on next page
 
 const videoSchema = new Schema(
     {
